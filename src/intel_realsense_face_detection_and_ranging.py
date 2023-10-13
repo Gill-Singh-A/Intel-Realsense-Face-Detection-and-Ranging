@@ -44,4 +44,18 @@ def detect_faces(image, face_classifier, scale_factor, min_neighbors, localize=T
     return faces
 
 if __name__ == "__main__":
-    pass
+    rospy.init_node("intel_realsense_face_detection_and_ranging")
+    rate = rospy.Rate(10)
+    image_subscriber = rospy.Subscriber("/camera/color/image_raw", Image, getImage)
+    image_depth_subscriber = rospy.Subscriber("/camera/depth/image_rect_raw", Image, getDepthImage)
+    camera_info_subscriber = rospy.Subscriber("/camera/depth/camera_info", CameraInfo, getCameraInfo)
+    while cameraInfo == None:
+        rate.sleep()
+    camera_model.fromCameraInfo(cameraInfo)
+    while image == None:
+        rate.sleep()
+    face_classifier = cv2.CascadeClassifier(cascade_file)
+    while not rospy.is_shutdown() and cv2.waitKey(1) != ord('q'):
+        faces = detect_faces(image, face_classifier, scale_factor, min_neighbors, localize=True)
+        cv2.imshow("Image", image)
+    cv2.destroyAllWindows()
