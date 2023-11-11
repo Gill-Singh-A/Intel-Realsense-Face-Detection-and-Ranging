@@ -11,7 +11,6 @@ camera_model = image_geometry.PinholeCameraModel()
 cameraInfo = None
 image = None
 depth_image = None
-distance_range = 0.35
 
 GREEN = (0, 255, 0)
 WHITE = (255, 255, 255)
@@ -34,10 +33,9 @@ def getRay(point):
 
 def measureFaceDepth(face):
     x, y, w, h = face
-    length = w * h
-    depth_slice = int((1-distance_range)*length//2)
-    face_depth = numpy.sort(depth_image[x:x+w, y:y+h].flatten())[depth_slice: -depth_slice]
-    return numpy.sun(face_depth)/len(face_depth)
+    face_depth = depth_image[x:x+w, y:y+h].flatten()
+    face_depth = face_depth[face_depth != 0]
+    return numpy.sum(face_depth)/len(face_depth)
 def draw_faces(image, faces, ranging=True):
     for face in faces:
         x, y, w, h = face
@@ -46,7 +44,7 @@ def draw_faces(image, faces, ranging=True):
             ray = getRay([x+w//2, y+h//2])
             depth = measureFaceDepth(face)
             coordinates = ray * depth
-            cv2.putText(image, f"({coordinates[0]},{coordinates[1]},{coordinates[2]})mm", (x, y+h), cv2.FONT_HERSHEY_COMPLEX, 1, WHITE, 2)
+            cv2.putText(image, f"({coordinates[0]:.2f},{coordinates[1]:.2f},{coordinates[2]:.2f})mm", (x, y+h), cv2.FONT_HERSHEY_COMPLEX, 1, WHITE, 2)
 def detect_faces(image, face_classifier, scale_factor, min_neighbors, localize=True, ranging=True):
     gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     faces = face_classifier.detectMultiScale(gray_image, scaleFactor=scale_factor, minNeighbors=min_neighbors)
@@ -63,8 +61,12 @@ if __name__ == "__main__":
     while cameraInfo == None:
         rate.sleep()
     camera_model.fromCameraInfo(cameraInfo)
-    while image == None:
-        rate.sleep()
+    while True:
+        try:
+            cv2.imshow("Face Detection and Ranging", image)
+            break
+        except:
+            pass
     face_classifier = cv2.CascadeClassifier(cascade_file)
     while not rospy.is_shutdown() and cv2.waitKey(1) != ord('q'):
         faces = detect_faces(image, face_classifier, scale_factor, min_neighbors, localize=True, ranging=True)
